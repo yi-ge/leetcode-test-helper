@@ -1,0 +1,41 @@
+{
+  "name": "leetcode-helper",
+  "version": "0.1.0",
+  "description": "LeetCode helper.",
+  "type": "module",
+  "bin": {
+    "lcp": "./bin/cli.js"
+  },
+  "types": "src/main.ts",
+  "main": "bin/cli.js",
+  "scripts": {
+    "start": "node --no-warnings --experimental-vm-modules --experimental-specifier-resolution=node --loader ts-node/esm ./src/lib/createPractice.ts"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/yi-ge/leetcode-helper.git"
+  },
+  "keywords": [
+    "leetcode",
+    "helper",
+    "arithmetic"
+  ],
+  "author": "yi-ge <a@wyr.me>",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/yi-ge/leetcode-helper/issues"
+  },
+  "homepage": "https://github.com/yi-ge/leetcode-helper#readme",
+  "devDependencies": {
+    "@types/node": "^18.0.0",
+    "typescript": "^4.7.4"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "puppeteer": "^15.2.0",
+    "puppeteer-extra": "^3.3.0",
+    "puppeteer-extra-plugin-stealth": "^2.10.1"
+  }
+}
