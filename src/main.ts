@@ -11,7 +11,7 @@ import { chromium } from 'playwright-extra'
 import StealthPlugin from 'puppeteer-extra-plugin-stealth'
 
 // 基础函数
-const __filename = fileURLToPath(import.meta.url)
+const __filename = join(fileURLToPath(import.meta.url), '../../')
 const __dirname = dirname(__filename)
 const sleep = (n: number) => new Promise(r => { setTimeout(r, n) })
 const homeDir = os.homedir()
@@ -27,6 +27,21 @@ const userDataDir = (() => {
       return ''
   }
 })()
+const cmdExists = (cmd: string) => {
+  try {
+    execSync(
+      os.platform() === 'win32'
+        ? `cmd /c "(help ${cmd} > nul || exit 0) && where ${cmd} > nul 2> nul"`
+        : `command -v ${cmd}`,
+    )
+    return true
+  }
+  catch {
+    return false
+  }
+}
+const command = cmdExists('code-insiders') ? 'code-insiders' : 'code'
+
 
 if (!fs.existsSync(userDataDir)) fs.mkdirSync(userDataDir)
 
@@ -385,21 +400,6 @@ if (fs.existsSync(testFilePath)) {
   fs.writeFileSync(testFilePath, testCode, 'utf-8')
 }
 
-function cmdExists (cmd: string) {
-  try {
-    execSync(
-      os.platform() === 'win32'
-        ? `cmd /c "(help ${cmd} > nul || exit 0) && where ${cmd} > nul 2> nul"`
-        : `command -v ${cmd}`,
-    )
-    return true
-  }
-  catch {
-    return false
-  }
-}
-
-const command = cmdExists('code-insiders') ? 'code-insiders' : 'code'
 
 execSync(command + ' ' + testFilePath)
 sleep(100)
