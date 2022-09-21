@@ -1,20 +1,16 @@
 {
   "name": "leetcode-test-helper",
-  "version": "0.1.0",
+  "version": "0.1.2",
   "description": "LeetCode helper.",
   "type": "module",
   "bin": {
     "lcp": "./bin/cli.js"
   },
-  "types": "src/main.ts",
-  "main": "bin/cli.js",
   "files": [
     "bin",
-    "src"
+    "src",
+    "tsconfig.json"
   ],
-  "scripts": {
-    "start": "node --no-warnings --experimental-vm-modules --experimental-specifier-resolution=node --loader ts-node/esm ./src/lib/createPractice.ts"
-  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/yi-ge/leetcode-test-helper.git"

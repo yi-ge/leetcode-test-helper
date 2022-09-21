@@ -16,7 +16,7 @@
       "ES2021",
       "ESNext"
     ],
-    "moduleResolution": "node",
+    "moduleResolution": "nodenext",
     "experimentalDecorators": true,
     "resolveJsonModule": true,
     "esModuleInterop": true
