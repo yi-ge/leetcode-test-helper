@@ -1,21 +1,34 @@
-#!/usr/bin/env ts-node
-// @ts-ignore
-import * as readline from 'node:readline/promises'
-import { argv, exit, stdin as input, stdout as output } from 'node:process'
-// @ts-ignore
-import puppeteer from 'puppeteer-extra'
+#!/usr/bin/env node
 import { execSync } from 'node:child_process'
-import StealthPlugin from 'puppeteer-extra-plugin-stealth'
-import os from 'node:os'
 import fs from 'node:fs'
+import os from 'node:os'
 import { dirname, join } from 'node:path'
+import { argv, exit, stdin as input, stdout as output } from 'node:process'
+import * as readline from 'node:readline/promises'
 import { fileURLToPath } from 'node:url'
-import { Page } from 'puppeteer'
+import { Page } from 'playwright-core'
+import { chromium } from 'playwright-extra'
+import StealthPlugin from 'puppeteer-extra-plugin-stealth'
 
 // 基础函数
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
 const sleep = (n: number) => new Promise(r => { setTimeout(r, n) })
+const homeDir = os.homedir()
+const userDataDir = (() => {
+  switch (os.type()) {
+    case 'Linux':
+      return join(homeDir, '/.config/google-chromium')
+    case 'Darwin':
+      return join(homeDir, '/Library/Application Support/Google/Chromium')
+    case 'Windows_NT':
+      return join(homeDir, '/.google-chromium')
+    default:
+      return ''
+  }
+})()
+
+if (!fs.existsSync(userDataDir)) fs.mkdirSync(userDataDir)
 
 if (argv.length > 3) {
   console.log('参数过多。')
@@ -35,44 +48,17 @@ if (!argv[2]) {
   url = argv[2]
 }
 
-// const checkAndQuitChrome = async (kill = false) => {
-//   const check = execSync(`ps aux|grep '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'`)
-//   if (check.toString('utf-8')?.split('\n').length >= 4) {
-//     console.log('浏览器已在运行，正在重启...')
-//     if (kill) {
-//       execSync(`killall 'Google Chrome'`)
-//     } else {
-//       execSync(`osascript -e 'quit app "Google Chrome"'`)
-//     }
-//     await sleep(2000)
-//     await checkAndQuitChrome(true)
-//   }
-// }
-
-// await checkAndQuitChrome()
 
 // 启动浏览器
-puppeteer.use(StealthPlugin())
+chromium.plugins.setDependencyDefaults('stealth/evasions/webgl.vendor', {
+  vendor: 'Bob',
+  renderer: 'Alice'
+})
 
-const homeDir = os.homedir()
+chromium.use(StealthPlugin())
 
-
-const userDataDir = (() => {
-  switch (os.type()) {
-    case 'Linux':
-      return join(homeDir, '/.config/google-chromium')
-    case 'Darwin':
-      return join(homeDir, '/Library/Application Support/Google/Chromium')
-    case 'Windows_NT':
-      return join(homeDir, '/.google-chromium')
-    default:
-      return ''
-  }
-})()
-
-if (!fs.existsSync(userDataDir)) fs.mkdirSync(userDataDir)
-
-const browser = await puppeteer.launch({
+// @ts-ignore
+const browser = await chromium.launchPersistentContext(userDataDir, {
   headless: false,
   ignoreDefaultArgs: [
     '--enable-automation',
@@ -97,16 +83,15 @@ const browser = await puppeteer.launch({
     '--password-store=basic',
     '--enable-blink-features=IdleDetection',
   ],
-  defaultViewport: null,
-  // executablePath: '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
-  userDataDir,
+  // defaultViewport: null,
+  deviceScaleFactor: 2.5,
+  executablePath: '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
   // args: ['--restore-last-session', '--start-maximized']
   args: ['--start-maximized', '--no-default-browser-check']
 })
 
-const pages = await browser.pages()
-const page = pages[0]// await browser.newPage()
-await page.setViewport({ width: 0, height: 0 })
+const page = await browser.newPage()
+await page.setViewportSize({ width: 0, height: 0 })
 
 const setDefaultLocalStorage = async (page: Page) => {
   await page.evaluate(() => {
@@ -122,18 +107,18 @@ const setDefaultLocalStorage = async (page: Page) => {
 if (url === '' || url === '1') {
   console.log('每日一题')
   await page.goto('https://leetcode.cn/problemset/all/', {
-    waitUntil: 'networkidle2'
+    waitUntil: 'networkidle'
   })
   await setDefaultLocalStorage(page)
   // @ts-ignore
   url = await page.$eval(`[role=row] a`, el => el.href)
   await page.goto(url, {
-    waitUntil: 'networkidle2'
+    waitUntil: 'networkidle'
   })
 } else if (url === '2') {
   console.log('随机一题')
   await page.goto('https://leetcode.cn/problemset/all/', {
-    waitUntil: 'networkidle2'
+    waitUntil: 'networkidle'
   })
   await setDefaultLocalStorage(page)
   await page.evaluate(() => {
@@ -147,15 +132,15 @@ if (url === '' || url === '1') {
   await page.waitForTimeout(2000)
   url = page.url()
   await page.goto(url, {
-    waitUntil: 'networkidle2'
+    waitUntil: 'networkidle'
   })
 } else {
   await page.goto(url, {
-    waitUntil: 'networkidle2'
+    waitUntil: 'networkidle'
   })
   await setDefaultLocalStorage(page)
   await page.goto(url, {
-    waitUntil: 'networkidle2'
+    waitUntil: 'networkidle'
   })
 }
 
@@ -312,16 +297,15 @@ if (readmeFileContent.includes(url)) {
 const screenshot = async () => {
   const screenshotPage = await browser.newPage()
   await screenshotPage.goto(url, {
-    waitUntil: 'networkidle2'
+    waitUntil: 'networkidle'
   })
   await screenshotPage.waitForTimeout(1000)
-  await screenshotPage.setViewport({ width: 1920, height: 3000, deviceScaleFactor: 2.5 })
+  await screenshotPage.setViewportSize({ width: 1920, height: 3000 })
   const desContent = await screenshotPage.$('[class^="content_"')
   await desContent?.screenshot({
     path: imageFilePath,
     type: 'jpeg',
     omitBackground: true,
-    encoding: 'binary',
     quality: 100
   })
   await screenshotPage.close()

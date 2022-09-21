@@ -1,10 +1,8 @@
 {
-  "ts-node": {
-    "ignore": ["/node_modules/(?!leetcode-test-helper)"]
-  },
   "compilerOptions": {
     "module": "esnext",
     "target": "esnext",
+    "outDir": "bin",
     "lib": [
       "WebWorker",
       "ES2015",
@@ -19,6 +17,11 @@
     "moduleResolution": "nodenext",
     "experimentalDecorators": true,
     "resolveJsonModule": true,
-    "esModuleInterop": true
-  }
+    "esModuleInterop": true,
+    "noImplicitAny": true,
+    "removeComments": true,
+    "skipLibCheck": true
+  },
+  "include": ["src/**/*.ts"],
+  "exclude": ["bin", "node_modules"]
 }
