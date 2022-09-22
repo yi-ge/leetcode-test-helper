@@ -268,7 +268,8 @@ const screenshot = async () => {
     });
     await screenshotPage.waitForTimeout(1000);
     await screenshotPage.setViewportSize({ width: 1920, height: 3000 });
-    const desContent = await screenshotPage.$('[class^="content_"');
+    await screenshotPage.evaluate(`document.querySelector('[class^="content_"').setAttribute('id', 'screenshot-content')`);
+    const desContent = await screenshotPage.$('#screenshot-content');
     await desContent?.screenshot({
         path: imageFilePath,
         type: 'jpeg',
