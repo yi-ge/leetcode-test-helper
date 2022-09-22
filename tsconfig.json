@@ -4,6 +4,7 @@
     "target": "esnext",
     "outDir": "bin",
     "lib": [
+      "DOM",
       "WebWorker",
       "ES2015",
       "ES2016",

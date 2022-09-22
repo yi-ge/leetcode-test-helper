@@ -1,4 +1,3 @@
-#!/usr/bin/env node
 import { execSync } from 'node:child_process'
 import fs from 'node:fs'
 import os from 'node:os'
@@ -45,22 +44,29 @@ const cmdExists = (cmd: string) => {
 const command = cmdExists('code-insiders') ? 'code-insiders' : 'code'
 
 
-if (argv.length > 3) {
+// 交互
+if (argv.length > 4) {
   console.log('参数过多。')
   exit(0)
 }
 
-// 交互
+const language = argv[2]?.toLocaleLowerCase().trim()
+
+if (!language) {
+  console.log('缺少编程语言参数，请参考实例仓库配置。')
+  exit(0)
+}
+
 let url = ''
 
-if (!argv[2]) {
+if (!argv[3]) {
   const rl = readline.createInterface({ input, output })
 
   url = await rl.question('请输入LeetCode URL（回车/1：每日一题，2：随机一题）：')
 
   rl.close()
 } else {
-  url = argv[2]
+  url = argv[3]
 }
 
 
@@ -72,7 +78,6 @@ chromium.plugins.setDependencyDefaults('stealth/evasions/webgl.vendor', {
 
 chromium.use(StealthPlugin())
 
-// @ts-ignore
 const browser = await chromium.launchPersistentContext(userDataDir, {
   headless: false,
   ignoreDefaultArgs: [
@@ -111,11 +116,8 @@ await page.setViewportSize({ width: 0, height: 0 })
 
 const setDefaultLocalStorage = async (page: Page) => {
   await page.evaluate(() => {
-    // @ts-ignore
-    localStorage.setItem('global_lang_key', '"typescript"')
-    // @ts-ignore
+    localStorage.setItem('global_lang_key', '"${language}"')
     localStorage.setItem('daily-question:guide-modal-shown', '"true"')
-    // @ts-ignore
     localStorage.setItem('SOLUTION_TAB_TITLE:is-hide-new-feature-popover', 'true')
   })
 }
@@ -138,7 +140,6 @@ if (url === '' || url === '1') {
   })
   await setDefaultLocalStorage(page)
   await page.evaluate(() => {
-    // @ts-ignore
     const headings = document.evaluate("//span[contains(., '随机一题')]", document, null, XPathResult.ANY_TYPE, null)
     let iterateNext = headings.iterateNext()
     // @ts-ignore
@@ -261,7 +262,7 @@ const classificationToReadmeTitle = {
   'other': '其它'
 }
 let tagIndex = 0
-let classification = tags.length > 0 ? tags[tagIndex] : '未知'
+let classification = (tags.length > 0 ? tags[tagIndex] : '未知') as string
 
 const tagToClassificationMap = new Map(Object.entries(tagToClassification))
 let classificationStr = tagToClassificationMap.get(classification) || 'other'
@@ -271,13 +272,24 @@ while (tagIndex < tags.length && classificationStr === 'other') {
   classificationStr = tagToClassificationMap.get(classification) || 'other'
 }
 
+const languageSourceDocSuffixMap = new Map<string, string>([
+  ['typescript', '.ts'],
+  ['c++', '.cpp'],
+  ['rust', '.rs']
+])
+
+const languageTestFileSuffixMap = new Map<string, string>([
+  ['typescript', '.test.ts'],
+  ['c++', '_test.cpp'],
+  ['rust', '_test.rs']
+])
 const classificationToReadmeTitleMap = new Map(Object.entries(classificationToReadmeTitle))
 const readmeTitle = classificationToReadmeTitleMap.get(classificationStr) || '其它'
 const reg = /[^/\\]+[/\\]*$/
 const fileName = reg.exec(url)?.shift()?.replace(/[\/$]+/g, '')
-const filePath = join(__dirname, `src/${classificationStr}`, fileName + '.ts')
+const filePath = join(__dirname, `src/${classificationStr}`, fileName + languageSourceDocSuffixMap.get(language))
 const imageFilePath = join(__dirname, `images/${classificationStr}`, fileName + '.jpeg')
-const testFilePath = join(__dirname, `test/${classificationStr}`, fileName + '.test.ts')
+const testFilePath = join(__dirname, `test/${classificationStr}`, fileName + languageTestFileSuffixMap.get(language))
 
 if (!fs.existsSync(dirname(filePath))) fs.mkdirSync(dirname(filePath))
 if (!fs.existsSync(dirname(testFilePath))) fs.mkdirSync(dirname(testFilePath))
@@ -320,6 +332,7 @@ const screenshot = async () => {
   await screenshotPage.close()
 }
 screenshot() // async
+await page.waitForTimeout(2000)
 
 // 代码/测试代码处理
 let code: string = (await page.evaluate('monaco.editor.getModels()[0].getValue()')) as string
@@ -349,7 +362,6 @@ if (!code.includes(`// ${url}`)) {
 
 let examples = await page.evaluate(() => {
   let examples = ``
-  // @ts-ignore
   const headings = document.evaluate("//strong[contains(., '示例')]", document, null, XPathResult.ANY_TYPE, null)
   let iterateNext = headings.iterateNext()
   let isFirst = true
