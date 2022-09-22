@@ -8,7 +8,7 @@ import * as readline from 'node:readline/promises';
 import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright-extra';
 import StealthPlugin from 'puppeteer-extra-plugin-stealth';
-const __filename = join(fileURLToPath(import.meta.url), '../../');
+const __filename = join(fileURLToPath(import.meta.url), '../../../');
 const __dirname = dirname(__filename);
 const sleep = (n) => new Promise(r => { setTimeout(r, n); });
 const homeDir = os.homedir();
@@ -24,6 +24,8 @@ const userDataDir = (() => {
             return '';
     }
 })();
+if (!fs.existsSync(userDataDir))
+    fs.mkdirSync(userDataDir);
 const cmdExists = (cmd) => {
     try {
         execSync(os.platform() === 'win32'
@@ -36,8 +38,6 @@ const cmdExists = (cmd) => {
     }
 };
 const command = cmdExists('code-insiders') ? 'code-insiders' : 'code';
-if (!fs.existsSync(userDataDir))
-    fs.mkdirSync(userDataDir);
 if (argv.length > 3) {
     console.log('参数过多。');
     exit(0);
@@ -237,7 +237,7 @@ const classificationToReadmeTitleMap = new Map(Object.entries(classificationToRe
 const readmeTitle = classificationToReadmeTitleMap.get(classificationStr) || '其它';
 const reg = /[^/\\]+[/\\]*$/;
 const fileName = reg.exec(url)?.shift()?.replace(/[\/$]+/g, '');
-const filePath = join(__dirname, classificationStr, fileName + '.ts');
+const filePath = join(__dirname, `src/${classificationStr}`, fileName + '.ts');
 const imageFilePath = join(__dirname, `images/${classificationStr}`, fileName + '.jpeg');
 const testFilePath = join(__dirname, `test/${classificationStr}`, fileName + '.test.ts');
 if (!fs.existsSync(dirname(filePath)))

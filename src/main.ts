@@ -11,7 +11,7 @@ import { chromium } from 'playwright-extra'
 import StealthPlugin from 'puppeteer-extra-plugin-stealth'
 
 // 基础函数
-const __filename = join(fileURLToPath(import.meta.url), '../../')
+const __filename = join(fileURLToPath(import.meta.url), '../../../')
 const __dirname = dirname(__filename)
 const sleep = (n: number) => new Promise(r => { setTimeout(r, n) })
 const homeDir = os.homedir()
@@ -27,6 +27,8 @@ const userDataDir = (() => {
       return ''
   }
 })()
+if (!fs.existsSync(userDataDir)) fs.mkdirSync(userDataDir)
+
 const cmdExists = (cmd: string) => {
   try {
     execSync(
@@ -42,8 +44,6 @@ const cmdExists = (cmd: string) => {
 }
 const command = cmdExists('code-insiders') ? 'code-insiders' : 'code'
 
-
-if (!fs.existsSync(userDataDir)) fs.mkdirSync(userDataDir)
 
 if (argv.length > 3) {
   console.log('参数过多。')
@@ -160,14 +160,6 @@ if (url === '' || url === '1') {
   })
 }
 
-// // 关闭 about:blank 页面
-// for (const page of pages) {
-//   const checkURL = page.url()
-//   if (checkURL === 'about:blank') {
-//     page.close()
-//   }
-// }
-
 // 标题/名称处理
 await page.waitForTimeout(1000)
 const LeetCodeTitle = (await page.title())?.split('-')?.shift()?.trim()
@@ -283,7 +275,7 @@ const classificationToReadmeTitleMap = new Map(Object.entries(classificationToRe
 const readmeTitle = classificationToReadmeTitleMap.get(classificationStr) || '其它'
 const reg = /[^/\\]+[/\\]*$/
 const fileName = reg.exec(url)?.shift()?.replace(/[\/$]+/g, '')
-const filePath = join(__dirname, classificationStr, fileName + '.ts')
+const filePath = join(__dirname, `src/${classificationStr}`, fileName + '.ts')
 const imageFilePath = join(__dirname, `images/${classificationStr}`, fileName + '.jpeg')
 const testFilePath = join(__dirname, `test/${classificationStr}`, fileName + '.test.ts')
 
