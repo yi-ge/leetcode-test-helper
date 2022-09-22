@@ -82,7 +82,8 @@ const browser = await chromium.launchPersistentContext(userDataDir, {
     executablePath: '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
     args: ['--start-maximized', '--no-default-browser-check']
 });
-const page = await browser.newPage();
+const pages = browser.pages();
+const page = pages[0];
 await page.setViewportSize({ width: 0, height: 0 });
 const setDefaultLocalStorage = async (page) => {
     await page.evaluate(() => {
@@ -236,9 +237,9 @@ const classificationToReadmeTitleMap = new Map(Object.entries(classificationToRe
 const readmeTitle = classificationToReadmeTitleMap.get(classificationStr) || '其它';
 const reg = /[^/\\]+[/\\]*$/;
 const fileName = reg.exec(url)?.shift()?.replace(/[\/$]+/g, '');
-const filePath = join(__dirname, '../', classificationStr, fileName + '.ts');
-const imageFilePath = join(__dirname, `../../images/${classificationStr}`, fileName + '.jpeg');
-const testFilePath = join(__dirname, '../../test/', classificationStr, fileName + '.test.ts');
+const filePath = join(__dirname, classificationStr, fileName + '.ts');
+const imageFilePath = join(__dirname, `images/${classificationStr}`, fileName + '.jpeg');
+const testFilePath = join(__dirname, `test/${classificationStr}`, fileName + '.test.ts');
 if (!fs.existsSync(dirname(filePath)))
     fs.mkdirSync(dirname(filePath));
 if (!fs.existsSync(dirname(testFilePath)))
@@ -247,7 +248,7 @@ if (!fs.existsSync(dirname(imageFilePath)))
     fs.mkdirSync(dirname(imageFilePath));
 console.log('标签：', tags);
 console.log('分类：', classification);
-let readmeFileContent = fs.readFileSync(join(__dirname, '../../README.md'), 'utf-8');
+let readmeFileContent = fs.readFileSync(join(__dirname, 'README.md'), 'utf-8');
 if (readmeFileContent.includes(url)) {
     console.log('已在README.md中添加过此题目。');
 }
@@ -258,7 +259,7 @@ else {
 
   - LeetCode ${LeetCodeTitle} <${url}>`;
     readmeFileContent = readmeFileContent.slice(0, index) + readmeFileContent.slice(index).replace(/\n/i, '\n' + instructions + '\n');
-    fs.writeFileSync(join(__dirname, '../../README.md'), readmeFileContent, 'utf-8');
+    fs.writeFileSync(join(__dirname, 'README.md'), readmeFileContent, 'utf-8');
 }
 const screenshot = async () => {
     const screenshotPage = await browser.newPage();
