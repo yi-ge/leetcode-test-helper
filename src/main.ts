@@ -144,7 +144,7 @@ const page = pages[0] // 第一个页面是空的，所以直接使用第一个�
 await page.setViewportSize({ width: 0, height: 0 }) // 避免大小被浏览器固定
 
 // 设置LeetCode代码编辑器当前编程语言
-const setDefaultLocalStorage = async (page: Page) => {
+const setDefaultLocalStorage = async (page: Page, language: string) => {
   await page.evaluateHandle(() => {
     window.localStorage.setItem('global_lang_key', `"${language}"`)
     window.localStorage.setItem('daily-question:guide-modal-shown', '"true"')
@@ -157,7 +157,7 @@ if (url === '' || url === '1') {
   await page.goto('https://leetcode.cn/problemset/all/', {
     waitUntil: 'networkidle'
   })
-  await setDefaultLocalStorage(page)
+  await setDefaultLocalStorage(page, language)
   await page.waitForSelector('[role=row] a')
   // @ts-ignore
   url = await page.$eval(`[role=row] a`, el => el.href)
@@ -169,7 +169,7 @@ if (url === '' || url === '1') {
   await page.goto('https://leetcode.cn/problemset/all/', {
     waitUntil: 'networkidle'
   })
-  await setDefaultLocalStorage(page)
+  await setDefaultLocalStorage(page, language)
   await page.evaluate(() => {
     const headings = document.evaluate("//span[contains(., '随机一题')]", document, null, XPathResult.ANY_TYPE, null)
     let iterateNext = headings.iterateNext()
@@ -186,7 +186,7 @@ if (url === '' || url === '1') {
   await page.goto(url, {
     waitUntil: 'networkidle'
   })
-  await setDefaultLocalStorage(page)
+  await setDefaultLocalStorage(page, language)
   await page.goto(url, {
     waitUntil: 'networkidle'
   })
