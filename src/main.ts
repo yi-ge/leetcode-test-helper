@@ -1,3 +1,4 @@
+#!/usr/bin/env node
 import { execSync } from 'node:child_process'
 import fs from 'node:fs'
 import os from 'node:os'
@@ -342,68 +343,243 @@ if (!fileName) {
   exit(1)
 }
 
-const noCommentCode = code.replace(reg, function (word) { // 去除注释后的代码
-  return /^\/{2,}/.test(word) || /^\/\*/.test(word) ? "" : word
-})
-const keyStr = noCommentCode.match(/(function|class)((\s.*?\(([^)]*)\))|(\s.*?\{))/ig)?.shift()
-const functionName = keyStr?.match(/(function|class)([ \t])([^(\(|\{)]+)/i)?.[3]?.trim()
-code = keyStr && !code.includes('export ') ? code.replace(keyStr, `export ${keyStr}`) : code
+if (language === 'typescript') {
+  const noCommentCode = code.replace(reg, function (word) { // 去除注释后的代码
+    return /^\/{2,}/.test(word) || /^\/\*/.test(word) ? "" : word
+  })
+  const keyStr = noCommentCode.match(/(function|class)((\s.*?\(([^)]*)\))|(\s.*?\{))/ig)?.shift()
+  const functionName = keyStr?.match(/(function|class)([ \t])([^(\(|\{)]+)/i)?.[3]?.trim()
+  code = keyStr && !code.includes('export ') ? code.replace(keyStr, `export ${keyStr}`) : code
 
-// * 不要删除下面存在的空行
-if (!code.includes(`// ${url}`)) {
-  code = `// ${title}
+  // * 不要删除下面存在的空行
+  if (!code.includes(`// ${url}`)) {
+    code = `// ${title}
 // ${url}
 // INLINE  ../../images/${classificationStr}/${fileName}.jpeg
 
 ` + code
-} else {
-  console.log('检测到已经同步过该题目，将再次打开此题。')
-}
-
-let examples = await page.evaluate(() => {
-  let examples = ``
-  const headings = document.evaluate("//strong[contains(., '示例')]", document, null, XPathResult.ANY_TYPE, null)
-  let iterateNext = headings.iterateNext()
-  let isFirst = true
-  while (iterateNext) {
-    if (isFirst) {
-      isFirst = false
-    } else {
-      examples += '\n'
-    }
-    // @ts-ignore
-    if (iterateNext?.innerText) examples += iterateNext?.innerText + '\n'
-    // @ts-ignore
-    let desNode = iterateNext?.parentNode?.nextSibling?.nextSibling
-    // @ts-ignore
-    while (desNode?.tagName === 'IMG') {
-      desNode = desNode?.nextSibling?.nextSibling
-    }
-    // @ts-ignore
-    examples += desNode?.innerText
-    iterateNext = headings.iterateNext()
+  } else {
+    console.log('检测到已经同步过该题目，将再次打开此题。')
   }
-  return examples
-})
 
-examples = examples.split('\n').map((item: any) => {
-  return item ? '  // ' + item : ''
-}).join('\n')
+  let examples = await page.evaluate(() => {
+    let examples = ``
+    const headings = document.evaluate("//strong[contains(., '示例')]", document, null, XPathResult.ANY_TYPE, null)
+    let iterateNext = headings.iterateNext()
+    let isFirst = true
+    while (iterateNext) {
+      if (isFirst) {
+        isFirst = false
+      } else {
+        examples += '\n'
+      }
+      // @ts-ignore
+      if (iterateNext?.innerText) examples += iterateNext?.innerText + '\n'
+      // @ts-ignore
+      let desNode = iterateNext?.parentNode?.nextSibling?.nextSibling
+      // @ts-ignore
+      while (desNode?.tagName === 'IMG') {
+        desNode = desNode?.nextSibling?.nextSibling
+      }
+      // @ts-ignore
+      examples += desNode?.innerText
+      iterateNext = headings.iterateNext()
+    }
+    return examples
+  })
 
-// * 不要删除下面存在的空行
-const testCode = `import { ${functionName} } from '../../src/${classificationStr}/${fileName}'
+  examples = examples.split('\n').map((item: any) => {
+    return item ? '  // ' + item : ''
+  }).join('\n')
+
+  // * 不要删除下面存在的空行
+  const testCode = `import { ${functionName} } from '../../src/${classificationStr}/${fileName}'
 
 test('${title}', () => {
 ${examples}
   expect(${functionName}()).toBeFalsy()
 })`
 
-fs.writeFileSync(filePath, code, 'utf-8')
+  fs.writeFileSync(filePath, code, 'utf-8')
 
-if (fs.existsSync(testFilePath)) {
-  console.log('已存在测试代码，将不会再生成测试用例。')
-} else {
-  fs.writeFileSync(testFilePath, testCode, 'utf-8')
+  if (fs.existsSync(testFilePath)) {
+    console.log('已存在测试代码，将不会再生成测试用例。')
+  } else {
+    fs.writeFileSync(testFilePath, testCode, 'utf-8')
+  }
+} else if (language === 'c++') {
+  const noCommentCode = code.replace(reg, function (word) { // 去除注释后的代码
+    return /^\/{2,}/.test(word) || /^\/\*/.test(word) ? "" : word
+  })
+  const keyClassStr = noCommentCode.match(/class(\s.*?\{)/ig)?.shift()
+  const className = keyClassStr?.match(/(class)([ \t])([^(\(|\{)]+)/i)?.[3]?.trim()
+  const keyFuncStr = noCommentCode.match(/.*(\(([^)]*)\))\s?.*?\{/ig)?.shift()
+  const functionName = keyFuncStr?.match(/((\w+)?([\s\*]+)(\w+|\w+::\w+))\(/i)?.[4]
+  let declaration = ''
+  if (functionName) { // 如果包含 function 推测函数声明
+    const argument = keyFuncStr.match(/\(([^)]*)\)/i)?.[1]
+    const declarationArgument = argument?.split(',')?.map(item => {
+      return item.trim()?.split(' ')?.[1]?.replace('&', '')?.trim()
+    })?.join(', ')
+    declaration = argument && declarationArgument ? functionName + ' (' + declarationArgument + ')' : ''
+  }
+
+  // * 不要删除下面存在的空行
+  if (!code.includes(`// ${url}`)) {
+    code = `// ${title}
+  // ${url}
+  // INLINE  ../../images/${classificationStr}/${fileName}.jpeg
+  #include <headers.hpp>
+  ` + code
+  } else {
+    console.log('检测到已经同步过该题目，将再次打开此题。')
+  }
+
+  let examples = await page.evaluate(() => {
+    let examples = ``
+    // @ts-ignore
+    const headings = document.evaluate("//strong[contains(., '示例')]", document, null, XPathResult.ANY_TYPE, null)
+    let iterateNext = headings.iterateNext()
+    let isFirst = true
+    while (iterateNext) {
+      if (isFirst) {
+        isFirst = false
+      } else {
+        examples += '\n'
+      }
+      // @ts-ignore
+      examples += iterateNext?.innerText + '\n'
+      // @ts-ignore
+      let desNode = iterateNext?.parentNode?.nextSibling?.nextSibling
+      // @ts-ignore
+      while (desNode.tagName === 'IMG') {
+        desNode = desNode?.nextSibling?.nextSibling
+      }
+      // @ts-ignore
+      examples += desNode?.innerText
+      iterateNext = headings.iterateNext()
+    }
+    return examples
+  })
+
+  examples = examples.split('\n').map(item => {
+    return item ? '  // ' + item : ''
+  }).join('\n')
+
+
+  if (fs.existsSync(testFilePath)) {
+    console.log('已存在测试代码，将不会再生成测试用例。')
+  } else {
+    if (functionName) {
+      // * 不要删除下面存在的空行
+      const testCode = `#include <${classificationStr}/${fileName + '.cpp'}>
+  TEST(${title}, ${functionName})
+  {
+  ${examples}
+    ${className} ${className?.toLocaleLowerCase()};
+    EXPECT_EQ(${className?.toLocaleLowerCase()}.${declaration}, 1);
+  }
+  `
+
+      fs.writeFileSync(filePath, code, 'utf-8')
+      fs.writeFileSync(testFilePath, testCode, 'utf-8')
+
+      // 触发Cmake
+      const cmakePath = os.type() === 'Darwin' ? '/opt/homebrew/bin/cmake' : 'cmake'
+      console.log(execSync(`${cmakePath} --no-warn-unused-cli -DCMAKE_EXPORT_COMPILE_COMMANDS:BOOL=TRUE -DCMAKE_BUILD_TYPE:STRING=Debug -S${join(__dirname, '../')} -B${join(__dirname, '../')}/build`)?.toString())
+    } else {
+      console.log('该题目暂不支持自动生成测试代码模板，请手工编写测试用例。')
+      fs.writeFileSync(testFilePath, `#include <gtest/gtest.h>`, 'utf-8')
+    }
+  }
+} else if (language === 'rust') {
+  const noCommentCode = code.replace(reg, function (word) { // 去除注释后的代码
+    return /^\/{2,}/.test(word) || /^\/\*/.test(word) ? "" : word
+  })
+  const keyFuncStr = noCommentCode.match(/.*(\(([^)]*)\))\s?.*?\{/ig)?.shift()
+  const functionName = keyFuncStr?.match(/((\w+)?([\s\*]+)(\w+|\w+::\w+))\(/i)?.[4]
+
+  // * 不要删除下面存在的空行
+  if (!code.includes(`// ${url}`)) {
+    code = `// ${title}
+  // ${url}
+  // INLINE  ../../images/${classificationStr}/${fileName}.jpeg
+  pub struct Solution;
+  ` + code
+
+  } else {
+    console.log('检测到已经同步过该题目，将再次打开此题。')
+  }
+
+  let examples = await page.evaluate(() => {
+    let examples = ``
+    // @ts-ignore
+    const headings = document.evaluate("//strong[contains(., '示例')]", document, null, XPathResult.ANY_TYPE, null)
+    let iterateNext = headings.iterateNext()
+    let isFirst = true
+    while (iterateNext) {
+      if (isFirst) {
+        isFirst = false
+      } else {
+        examples += '\n'
+      }
+      // @ts-ignore
+      examples += iterateNext?.innerText + '\n'
+      // @ts-ignore
+      let desNode = iterateNext?.parentNode?.nextSibling?.nextSibling
+      // @ts-ignore
+      while (desNode && desNode.tagName === 'IMG') {
+        desNode = desNode?.nextSibling?.nextSibling
+      }
+      // @ts-ignore
+      examples += desNode?.innerText
+      iterateNext = headings.iterateNext()
+    }
+    return examples
+  })
+
+  examples = examples.split('\n').map(item => {
+    return item ? '    // ' + item : ''
+  }).join('\n')
+
+  if (fs.existsSync(testFilePath)) {
+    console.log('已存在测试代码，将不会再生成测试用例。')
+  } else {
+    if (functionName) {
+      // * 不要删除下面存在的空行
+      const testCode = `use rust_practice::${classificationStr}::${fileName}::Solution;
+  #[test]
+  fn ${functionName}() {
+  ${examples}
+      assert_eq!(Solution::${functionName}(), 1);
+  }
+  `
+      fs.writeFileSync(filePath, code, 'utf-8')
+      fs.writeFileSync(testFilePath, testCode, 'utf-8')
+      const modPath = join(dirname(filePath), 'mod.rs')
+      const testModPath = join(dirname(testFilePath), 'mod.rs')
+      if (!fs.existsSync(modPath) || !fs.readFileSync(modPath, 'utf-8')?.includes(`pub mod ${fileName};`)) {
+        fs.appendFileSync(modPath, `pub mod ${fileName};\n`, 'utf-8')
+      }
+
+      if (!fs.existsSync(testModPath) || !fs.readFileSync(testModPath, 'utf-8')?.includes(`pub mod ${fileName};`)) {
+        fs.appendFileSync(testModPath, `pub mod ${fileName}_test;\n`, 'utf-8')
+      }
+
+      const libPath = join(__dirname, '../src/lib.rs')
+      const testsPath = join(__dirname, '../tests/tests.rs')
+      if (!fs.readFileSync(libPath, 'utf-8')?.includes(`pub mod ${classificationStr};`)) {
+        fs.appendFileSync(libPath, `pub mod ${classificationStr};\n`, 'utf-8')
+      }
+
+      if (!fs.readFileSync(testsPath, 'utf-8')?.includes(`mod ${classificationStr};`)) {
+        fs.appendFileSync(testsPath, `mod ${classificationStr};\n`, 'utf-8')
+      }
+    } else {
+      console.log('该题目暂不支持自动生成测试代码模板，请手工编写测试用例。')
+      fs.writeFileSync(testFilePath, `use rust_practice::${classificationStr}::${fileName}::Solution;`, 'utf-8')
+    }
+  }
 }
 
 
@@ -413,8 +589,7 @@ execSync(command + ' ' + filePath)
 
 
 try {
-  // @ts-ignore
-  const isLogin = !((await page.$eval(`div[class*='AuthLinks']`, el => el.innerText))?.includes('登录'))
+  const isLogin = !((await page.$eval(`div[class*='AuthLinks']`, el => (el as HTMLElement).innerText))?.includes('登录'))
 
   if (!isLogin) {
     console.log('如果有会员建议在弹出的浏览器登陆，之后访问VIP题目时可获得访问权限。')
@@ -424,9 +599,21 @@ try {
 console.log('可以开始写代码了。')
 
 // 代码更新（回写到LeetCode编辑框）
-const updateCode = async (filePath: string, title: string) => {
+const updateCode = async (filePath: string, title: string, language: string) => {
   let fileContent = fs.readFileSync(filePath, 'utf-8')
-  if (fileContent.includes('export ')) fileContent = fileContent.replace(/export\s/ig, '')
+  switch (language) {
+    case 'typescript':
+      if (fileContent.includes('export ')) fileContent = fileContent.replace(/export\s/ig, '')
+      break
+    case 'c++':
+      fileContent = fileContent.replace('#include <headers.hpp>', '')
+      break
+    case 'rust':
+      fileContent = fileContent.replace('pub struct Solution;', '')
+      fileContent = fileContent.replace('use crate::libs::list_node::ListNode;\n', '')
+      fileContent = fileContent.replace('use crate::libs::tree_node::TreeNode;\n', '')
+      break
+  }
   await page.evaluate(`monaco.editor.getModels()[0].setValue(\`${fileContent}\`)`)
   console.log(`${title} 代码已同步。`)
 }
@@ -442,7 +629,7 @@ const debounce = (func: Function, time: number) => {
 
 fs.watchFile(filePath, async (curr, prev) => {
   debounce(() => {
-    updateCode(filePath, title || fileName)
+    updateCode(filePath, title || fileName, language)
   }, 500)
 })
 
