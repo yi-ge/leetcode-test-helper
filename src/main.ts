@@ -158,6 +158,7 @@ if (url === '' || url === '1') {
     waitUntil: 'networkidle'
   })
   await setDefaultLocalStorage(page)
+  await page.waitForSelector('[role=row] a')
   // @ts-ignore
   url = await page.$eval(`[role=row] a`, el => el.href)
   await page.goto(url, {
@@ -193,8 +194,12 @@ if (url === '' || url === '1') {
 
 // 标题/名称处理
 await page.waitForTimeout(1000)
-const LeetCodeTitle = (await page.title())?.split('-')?.shift()?.trim()
-const title = (await page.title())?.split('-')?.shift()?.trim().split('.')?.pop()?.trim()
+let LeetCodeTitle = (await page.title())?.split('-')?.shift()?.trim()
+while (LeetCodeTitle.trim() === '') {
+  await page.waitForTimeout(1000)
+  LeetCodeTitle = (await page.title())?.split('-')?.shift()?.trim()
+}
+const title = LeetCodeTitle.split('.')?.pop()?.trim()
 console.log(`名称：${title}`)
 
 // 标签/分类处理
