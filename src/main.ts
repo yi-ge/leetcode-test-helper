@@ -1,38 +1,27 @@
 #!/usr/bin/env node
 import { execSync } from 'node:child_process'
-import fs from 'node:fs'
-import os from 'node:os'
+import { appendFileSync, existsSync, mkdirSync, readFileSync, watchFile, writeFileSync } from 'node:fs'
+import { homedir, platform, type as OSType } from 'node:os'
 import { dirname, join } from 'node:path'
 import { argv, exit, stdin as input, stdout as output } from 'node:process'
-import * as readline from 'node:readline/promises'
+import { createInterface } from 'node:readline/promises'
 import { fileURLToPath } from 'node:url'
 import { Page } from 'playwright-core'
 import { chromium } from 'playwright-extra'
 import StealthPlugin from 'puppeteer-extra-plugin-stealth'
 
-// 基础函数
-const __filename = join(fileURLToPath(import.meta.url), '../../../')
-const __dirname = dirname(__filename)
-const sleep = (n: number) => new Promise(r => { setTimeout(r, n) })
-const homeDir = os.homedir()
-const userDataDir = (() => {
-  switch (os.type()) {
-    case 'Linux':
-      return join(homeDir, '/.config/google-chromium')
-    case 'Darwin':
-      return join(homeDir, '/Library/Application Support/Google/Chromium')
-    case 'Windows_NT':
-      return join(homeDir, '/.google-chromium')
-    default:
-      return ''
-  }
-})()
-if (!fs.existsSync(userDataDir)) fs.mkdirSync(userDataDir)
+// * 由于编译配置限制，请勿将代码分离到多个文件。
 
+/**
+ * 基础函数
+ */
+// 延时函数
+const sleep = (n: number) => new Promise(r => { setTimeout(r, n) })
+// 判断命令是否存在
 const cmdExists = (cmd: string) => {
   try {
     execSync(
-      os.platform() === 'win32'
+      platform() === 'win32'
         ? `cmd /c "(help ${cmd} > nul || exit 0) && where ${cmd} > nul 2> nul"`
         : `command -v ${cmd}`,
     )
@@ -42,42 +31,81 @@ const cmdExists = (cmd: string) => {
     return false
   }
 }
+
+/**
+ * 全局变量
+ */
+// 文件所在路径
+const __filename = join(fileURLToPath(import.meta.url), '../../../')
+// 目录所在路径
+const __dirname = dirname(__filename)
+// 浏览器用户数据目录
+const userDataDir = (() => {
+  switch (OSType()) {
+    case 'Linux':
+      return join(homedir(), '/.config/google-chromium')
+    case 'Darwin':
+      return join(homedir(), '/Library/Application Support/Google/Chromium')
+    case 'Windows_NT':
+      return join(homedir(), '/.google-chromium')
+    default:
+      return ''
+  }
+})()
+// 用于打开 VS Code 的命令
 const command = cmdExists('code-insiders') ? 'code-insiders' : 'code'
 
+/**
+ * 初始化 - 执行浏览器操作代码前
+ * 命令被注册为lcp
+ * 第一个参数是 language
+ * 第二个参数是 url
+ * 从命令行参数获取编程语言及LeetCode URL
+ */
+const init = async () => {
+  // 如果浏览器用户目录不存在则新建
+  if (!existsSync(userDataDir)) mkdirSync(userDataDir)
 
-// 交互
-if (argv.length > 4) {
-  console.log('参数过多。')
-  exit(0)
+  // 配置浏览器
+  chromium.plugins.setDependencyDefaults('stealth/evasions/webgl.vendor', {
+    vendor: 'Bob',
+    renderer: 'Alice'
+  })
+
+  chromium.use(StealthPlugin())
+
+  // 交互
+  if (argv.length > 4) {
+    console.log('参数过多。')
+    exit(0)
+  }
+
+  const language = argv[2]?.toLocaleLowerCase().trim()
+
+  if (!language) {
+    console.log('缺少编程语言参数，请参考实例仓库配置。')
+    exit(0)
+  }
+
+  let url = ''
+
+  if (!argv[3]) {
+    const rl = createInterface({ input, output })
+
+    url = await rl.question('请输入LeetCode URL（回车/1：每日一题，2：随机一题）：')
+
+    rl.close()
+  } else {
+    url = argv[3]
+  }
+
+  return {
+    language,
+    url
+  }
 }
 
-const language = argv[2]?.toLocaleLowerCase().trim()
-
-if (!language) {
-  console.log('缺少编程语言参数，请参考实例仓库配置。')
-  exit(0)
-}
-
-let url = ''
-
-if (!argv[3]) {
-  const rl = readline.createInterface({ input, output })
-
-  url = await rl.question('请输入LeetCode URL（回车/1：每日一题，2：随机一题）：')
-
-  rl.close()
-} else {
-  url = argv[3]
-}
-
-
-// 启动浏览器
-chromium.plugins.setDependencyDefaults('stealth/evasions/webgl.vendor', {
-  vendor: 'Bob',
-  renderer: 'Alice'
-})
-
-chromium.use(StealthPlugin())
+let { url, language } = await init()
 
 const browser = await chromium.launchPersistentContext(userDataDir, {
   headless: false,
@@ -112,9 +140,10 @@ const browser = await chromium.launchPersistentContext(userDataDir, {
 })
 
 const pages = browser.pages()
-const page = pages[0]
-await page.setViewportSize({ width: 0, height: 0 })
+const page = pages[0] // 第一个页面是空的，所以直接使用第一个标签的页面
+await page.setViewportSize({ width: 0, height: 0 }) // 避免大小被浏览器固定
 
+// 设置LeetCode代码编辑器当前编程语言
 const setDefaultLocalStorage = async (page: Page) => {
   await page.evaluate(() => {
     localStorage.setItem('global_lang_key', '"${language}"')
@@ -152,7 +181,7 @@ if (url === '' || url === '1') {
   await page.goto(url, {
     waitUntil: 'networkidle'
   })
-} else {
+} else { // 用户传入的URL
   await page.goto(url, {
     waitUntil: 'networkidle'
   })
@@ -292,15 +321,15 @@ const filePath = join(__dirname, `src/${classificationStr}`, fileName + language
 const imageFilePath = join(__dirname, `images/${classificationStr}`, fileName + '.jpeg')
 const testFilePath = join(__dirname, `test/${classificationStr}`, fileName + languageTestFileSuffixMap.get(language))
 
-if (!fs.existsSync(dirname(filePath))) fs.mkdirSync(dirname(filePath))
-if (!fs.existsSync(dirname(testFilePath))) fs.mkdirSync(dirname(testFilePath))
-if (!fs.existsSync(dirname(imageFilePath))) fs.mkdirSync(dirname(imageFilePath))
+if (!existsSync(dirname(filePath))) mkdirSync(dirname(filePath))
+if (!existsSync(dirname(testFilePath))) mkdirSync(dirname(testFilePath))
+if (!existsSync(dirname(imageFilePath))) mkdirSync(dirname(imageFilePath))
 
 console.log('标签：', tags)
 console.log('分类：', classification)
 
 // 添加README.md说明
-let readmeFileContent = fs.readFileSync(join(__dirname, 'README.md'), 'utf-8')
+let readmeFileContent = readFileSync(join(__dirname, 'README.md'), 'utf-8')
 if (readmeFileContent.includes(url)) {
   console.log('已在README.md中添加过此题目。')
 } else {
@@ -311,7 +340,7 @@ if (readmeFileContent.includes(url)) {
 
   - LeetCode ${LeetCodeTitle} <${url}>`
   readmeFileContent = readmeFileContent.slice(0, index) + readmeFileContent.slice(index).replace(/\n/i, '\n' + instructions + '\n')
-  fs.writeFileSync(join(__dirname, 'README.md'), readmeFileContent, 'utf-8')
+  writeFileSync(join(__dirname, 'README.md'), readmeFileContent, 'utf-8')
 }
 
 // 保存说明截图, 方便快速查阅
@@ -343,26 +372,8 @@ if (!fileName) {
   exit(1)
 }
 
-if (language === 'typescript') {
-  const noCommentCode = code.replace(reg, function (word) { // 去除注释后的代码
-    return /^\/{2,}/.test(word) || /^\/\*/.test(word) ? "" : word
-  })
-  const keyStr = noCommentCode.match(/(function|class)((\s.*?\(([^)]*)\))|(\s.*?\{))/ig)?.shift()
-  const functionName = keyStr?.match(/(function|class)([ \t])([^(\(|\{)]+)/i)?.[3]?.trim()
-  code = keyStr && !code.includes('export ') ? code.replace(keyStr, `export ${keyStr}`) : code
-
-  // * 不要删除下面存在的空行
-  if (!code.includes(`// ${url}`)) {
-    code = `// ${title}
-// ${url}
-// INLINE  ../../images/${classificationStr}/${fileName}.jpeg
-
-` + code
-  } else {
-    console.log('检测到已经同步过该题目，将再次打开此题。')
-  }
-
-  let examples = await page.evaluate(() => {
+const getExamples = async (page: Page) => {
+  return await page.evaluate(() => {
     let examples = ``
     const headings = document.evaluate("//strong[contains(., '示例')]", document, null, XPathResult.ANY_TYPE, null)
     let iterateNext = headings.iterateNext()
@@ -387,7 +398,28 @@ if (language === 'typescript') {
     }
     return examples
   })
+}
 
+if (language === 'typescript') {
+  const noCommentCode = code.replace(reg, function (word) { // 去除注释后的代码
+    return /^\/{2,}/.test(word) || /^\/\*/.test(word) ? "" : word
+  })
+  const keyStr = noCommentCode.match(/(function|class)((\s.*?\(([^)]*)\))|(\s.*?\{))/ig)?.shift()
+  const functionName = keyStr?.match(/(function|class)([ \t])([^(\(|\{)]+)/i)?.[3]?.trim()
+  code = keyStr && !code.includes('export ') ? code.replace(keyStr, `export ${keyStr}`) : code
+
+  // * 不要删除下面存在的空行
+  if (!code.includes(`// ${url}`)) {
+    code = `// ${title}
+// ${url}
+// INLINE  ../../images/${classificationStr}/${fileName}.jpeg
+
+` + code
+  } else {
+    console.log('检测到已经同步过该题目，将再次打开此题。')
+  }
+
+  let examples = await getExamples(page)
   examples = examples.split('\n').map((item: any) => {
     return item ? '  // ' + item : ''
   }).join('\n')
@@ -400,12 +432,12 @@ ${examples}
   expect(${functionName}()).toBeFalsy()
 })`
 
-  fs.writeFileSync(filePath, code, 'utf-8')
+  writeFileSync(filePath, code, 'utf-8')
 
-  if (fs.existsSync(testFilePath)) {
+  if (existsSync(testFilePath)) {
     console.log('已存在测试代码，将不会再生成测试用例。')
   } else {
-    fs.writeFileSync(testFilePath, testCode, 'utf-8')
+    writeFileSync(testFilePath, testCode, 'utf-8')
   }
 } else if (language === 'c++') {
   const noCommentCode = code.replace(reg, function (word) { // 去除注释后的代码
@@ -435,39 +467,13 @@ ${examples}
     console.log('检测到已经同步过该题目，将再次打开此题。')
   }
 
-  let examples = await page.evaluate(() => {
-    let examples = ``
-    // @ts-ignore
-    const headings = document.evaluate("//strong[contains(., '示例')]", document, null, XPathResult.ANY_TYPE, null)
-    let iterateNext = headings.iterateNext()
-    let isFirst = true
-    while (iterateNext) {
-      if (isFirst) {
-        isFirst = false
-      } else {
-        examples += '\n'
-      }
-      // @ts-ignore
-      examples += iterateNext?.innerText + '\n'
-      // @ts-ignore
-      let desNode = iterateNext?.parentNode?.nextSibling?.nextSibling
-      // @ts-ignore
-      while (desNode.tagName === 'IMG') {
-        desNode = desNode?.nextSibling?.nextSibling
-      }
-      // @ts-ignore
-      examples += desNode?.innerText
-      iterateNext = headings.iterateNext()
-    }
-    return examples
-  })
-
+  let examples = await getExamples(page)
   examples = examples.split('\n').map(item => {
     return item ? '  // ' + item : ''
   }).join('\n')
 
 
-  if (fs.existsSync(testFilePath)) {
+  if (existsSync(testFilePath)) {
     console.log('已存在测试代码，将不会再生成测试用例。')
   } else {
     if (functionName) {
@@ -481,15 +487,15 @@ ${examples}
   }
   `
 
-      fs.writeFileSync(filePath, code, 'utf-8')
-      fs.writeFileSync(testFilePath, testCode, 'utf-8')
+      writeFileSync(filePath, code, 'utf-8')
+      writeFileSync(testFilePath, testCode, 'utf-8')
 
       // 触发Cmake
-      const cmakePath = os.type() === 'Darwin' ? '/opt/homebrew/bin/cmake' : 'cmake'
+      const cmakePath = OSType() === 'Darwin' ? '/opt/homebrew/bin/cmake' : 'cmake'
       console.log(execSync(`${cmakePath} --no-warn-unused-cli -DCMAKE_EXPORT_COMPILE_COMMANDS:BOOL=TRUE -DCMAKE_BUILD_TYPE:STRING=Debug -S${join(__dirname, '../')} -B${join(__dirname, '../')}/build`)?.toString())
     } else {
       console.log('该题目暂不支持自动生成测试代码模板，请手工编写测试用例。')
-      fs.writeFileSync(testFilePath, `#include <gtest/gtest.h>`, 'utf-8')
+      writeFileSync(testFilePath, `#include <gtest/gtest.h>`, 'utf-8')
     }
   }
 } else if (language === 'rust') {
@@ -511,38 +517,12 @@ ${examples}
     console.log('检测到已经同步过该题目，将再次打开此题。')
   }
 
-  let examples = await page.evaluate(() => {
-    let examples = ``
-    // @ts-ignore
-    const headings = document.evaluate("//strong[contains(., '示例')]", document, null, XPathResult.ANY_TYPE, null)
-    let iterateNext = headings.iterateNext()
-    let isFirst = true
-    while (iterateNext) {
-      if (isFirst) {
-        isFirst = false
-      } else {
-        examples += '\n'
-      }
-      // @ts-ignore
-      examples += iterateNext?.innerText + '\n'
-      // @ts-ignore
-      let desNode = iterateNext?.parentNode?.nextSibling?.nextSibling
-      // @ts-ignore
-      while (desNode && desNode.tagName === 'IMG') {
-        desNode = desNode?.nextSibling?.nextSibling
-      }
-      // @ts-ignore
-      examples += desNode?.innerText
-      iterateNext = headings.iterateNext()
-    }
-    return examples
-  })
-
+  let examples = await getExamples(page)
   examples = examples.split('\n').map(item => {
     return item ? '    // ' + item : ''
   }).join('\n')
 
-  if (fs.existsSync(testFilePath)) {
+  if (existsSync(testFilePath)) {
     console.log('已存在测试代码，将不会再生成测试用例。')
   } else {
     if (functionName) {
@@ -554,53 +534,37 @@ ${examples}
       assert_eq!(Solution::${functionName}(), 1);
   }
   `
-      fs.writeFileSync(filePath, code, 'utf-8')
-      fs.writeFileSync(testFilePath, testCode, 'utf-8')
+      writeFileSync(filePath, code, 'utf-8')
+      writeFileSync(testFilePath, testCode, 'utf-8')
       const modPath = join(dirname(filePath), 'mod.rs')
       const testModPath = join(dirname(testFilePath), 'mod.rs')
-      if (!fs.existsSync(modPath) || !fs.readFileSync(modPath, 'utf-8')?.includes(`pub mod ${fileName};`)) {
-        fs.appendFileSync(modPath, `pub mod ${fileName};\n`, 'utf-8')
+      if (!existsSync(modPath) || !readFileSync(modPath, 'utf-8')?.includes(`pub mod ${fileName};`)) {
+        appendFileSync(modPath, `pub mod ${fileName};\n`, 'utf-8')
       }
 
-      if (!fs.existsSync(testModPath) || !fs.readFileSync(testModPath, 'utf-8')?.includes(`pub mod ${fileName};`)) {
-        fs.appendFileSync(testModPath, `pub mod ${fileName}_test;\n`, 'utf-8')
+      if (!existsSync(testModPath) || !readFileSync(testModPath, 'utf-8')?.includes(`pub mod ${fileName};`)) {
+        appendFileSync(testModPath, `pub mod ${fileName}_test;\n`, 'utf-8')
       }
 
       const libPath = join(__dirname, '../src/lib.rs')
       const testsPath = join(__dirname, '../tests/tests.rs')
-      if (!fs.readFileSync(libPath, 'utf-8')?.includes(`pub mod ${classificationStr};`)) {
-        fs.appendFileSync(libPath, `pub mod ${classificationStr};\n`, 'utf-8')
+      if (!readFileSync(libPath, 'utf-8')?.includes(`pub mod ${classificationStr};`)) {
+        appendFileSync(libPath, `pub mod ${classificationStr};\n`, 'utf-8')
       }
 
-      if (!fs.readFileSync(testsPath, 'utf-8')?.includes(`mod ${classificationStr};`)) {
-        fs.appendFileSync(testsPath, `mod ${classificationStr};\n`, 'utf-8')
+      if (!readFileSync(testsPath, 'utf-8')?.includes(`mod ${classificationStr};`)) {
+        appendFileSync(testsPath, `mod ${classificationStr};\n`, 'utf-8')
       }
     } else {
       console.log('该题目暂不支持自动生成测试代码模板，请手工编写测试用例。')
-      fs.writeFileSync(testFilePath, `use rust_practice::${classificationStr}::${fileName}::Solution;`, 'utf-8')
+      writeFileSync(testFilePath, `use rust_practice::${classificationStr}::${fileName}::Solution;`, 'utf-8')
     }
   }
 }
 
-
-execSync(command + ' ' + testFilePath)
-sleep(100)
-execSync(command + ' ' + filePath)
-
-
-try {
-  const isLogin = !((await page.$eval(`div[class*='AuthLinks']`, el => (el as HTMLElement).innerText))?.includes('登录'))
-
-  if (!isLogin) {
-    console.log('如果有会员建议在弹出的浏览器登陆，之后访问VIP题目时可获得访问权限。')
-  }
-} catch (_) { }
-
-console.log('可以开始写代码了。')
-
 // 代码更新（回写到LeetCode编辑框）
 const updateCode = async (filePath: string, title: string, language: string) => {
-  let fileContent = fs.readFileSync(filePath, 'utf-8')
+  let fileContent = readFileSync(filePath, 'utf-8')
   switch (language) {
     case 'typescript':
       if (fileContent.includes('export ')) fileContent = fileContent.replace(/export\s/ig, '')
@@ -627,11 +591,29 @@ const debounce = (func: Function, time: number) => {
   }, time)
 }
 
-fs.watchFile(filePath, async (curr, prev) => {
-  debounce(() => {
-    updateCode(filePath, title || fileName, language)
-  }, 500)
-})
+try {
+  watchFile(filePath, async (curr, prev) => {
+    debounce(() => {
+      updateCode(filePath, title || fileName, language)
+    }, 500)
+  })
+} catch (err) {
+  console.error(err)
+  await browser.close()
+}
 
-// await browser.close()
+execSync(command + ' ' + testFilePath)
+sleep(100)
+execSync(command + ' ' + filePath)
+
+
+try {
+  const isLogin = !((await page.$eval(`div[class*='AuthLinks']`, el => (el as HTMLElement).innerText))?.includes('登录'))
+
+  if (!isLogin) {
+    console.log('如果有会员建议在弹出的浏览器登陆，之后访问VIP题目时可获得访问权限。')
+  }
+} catch (_) { }
+
+console.log('可以开始写代码了。')
 
