@@ -145,11 +145,11 @@ await page.setViewportSize({ width: 0, height: 0 }) // 避免大小被浏览器�
 
 // 设置LeetCode代码编辑器当前编程语言
 const setDefaultLocalStorage = async (page: Page, language: string) => {
-  await page.evaluateHandle(() => {
+  await page.evaluate(([language]) => {
     window.localStorage.setItem('global_lang_key', `"${language}"`)
     window.localStorage.setItem('daily-question:guide-modal-shown', '"true"')
     window.localStorage.setItem('SOLUTION_TAB_TITLE:is-hide-new-feature-popover', 'true')
-  })
+  }, [language])
 }
 
 if (url === '' || url === '1') {
