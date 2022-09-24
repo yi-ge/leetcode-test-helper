@@ -324,7 +324,7 @@ const reg = /[^/\\]+[/\\]*$/
 const fileName = reg.exec(url)?.shift()?.replace(/[\/$]+/g, '')
 const filePath = join(__dirname, `src/${classificationStr}`, fileName + languageSourceDocSuffixMap.get(language))
 const imageFilePath = join(__dirname, `images/${classificationStr}`, fileName + '.jpeg')
-const testFilePath = join(__dirname, `test/${classificationStr}`, fileName + languageTestFileSuffixMap.get(language))
+const testFilePath = join(__dirname, (language === 'rust' ? 'tests' : 'test') + `/${classificationStr}`, fileName + languageTestFileSuffixMap.get(language))
 
 if (!existsSync(dirname(filePath))) mkdirSync(dirname(filePath))
 if (!existsSync(dirname(testFilePath))) mkdirSync(dirname(testFilePath))
@@ -464,10 +464,11 @@ ${examples}
   // * 不要删除下面存在的空行
   if (!code.includes(`// ${url}`)) {
     code = `// ${title}
-  // ${url}
-  // INLINE  ../../images/${classificationStr}/${fileName}.jpeg
-  #include <headers.hpp>
-  ` + code
+// ${url}
+// INLINE  ../../images/${classificationStr}/${fileName}.jpeg
+#include <headers.hpp>
+
+` + code
   } else {
     console.log('检测到已经同步过该题目，将再次打开此题。')
   }
@@ -484,20 +485,20 @@ ${examples}
     if (functionName) {
       // * 不要删除下面存在的空行
       const testCode = `#include <${classificationStr}/${fileName + '.cpp'}>
-  TEST(${title}, ${functionName})
-  {
-  ${examples}
-    ${className} ${className?.toLocaleLowerCase()};
-    EXPECT_EQ(${className?.toLocaleLowerCase()}.${declaration}, 1);
-  }
-  `
+TEST(${title}, ${functionName})
+{
+${examples}
+  ${className} ${className?.toLocaleLowerCase()};
+  EXPECT_EQ(${className?.toLocaleLowerCase()}.${declaration}, 1);
+}
+`
 
       writeFileSync(filePath, code, 'utf-8')
       writeFileSync(testFilePath, testCode, 'utf-8')
 
       // 触发Cmake
       const cmakePath = OSType() === 'Darwin' ? '/opt/homebrew/bin/cmake' : 'cmake'
-      console.log(execSync(`${cmakePath} --no-warn-unused-cli -DCMAKE_EXPORT_COMPILE_COMMANDS:BOOL=TRUE -DCMAKE_BUILD_TYPE:STRING=Debug -S${join(__dirname, '../')} -B${join(__dirname, '../')}/build`)?.toString())
+      console.log(execSync(`${cmakePath} --no-warn-unused-cli -DCMAKE_EXPORT_COMPILE_COMMANDS:BOOL=TRUE -DCMAKE_BUILD_TYPE:STRING=Debug -S${join(__dirname)} -B${join(__dirname, './build')}`)?.toString())
     } else {
       console.log('该题目暂不支持自动生成测试代码模板，请手工编写测试用例。')
       writeFileSync(testFilePath, `#include <gtest/gtest.h>`, 'utf-8')
@@ -513,10 +514,12 @@ ${examples}
   // * 不要删除下面存在的空行
   if (!code.includes(`// ${url}`)) {
     code = `// ${title}
-  // ${url}
-  // INLINE  ../../images/${classificationStr}/${fileName}.jpeg
-  pub struct Solution;
-  ` + code
+// ${url}
+// INLINE  ../../images/${classificationStr}/${fileName}.jpeg
+
+pub struct Solution;
+
+` + code
 
   } else {
     console.log('检测到已经同步过该题目，将再次打开此题。')
@@ -533,12 +536,13 @@ ${examples}
     if (functionName) {
       // * 不要删除下面存在的空行
       const testCode = `use rust_practice::${classificationStr}::${fileName}::Solution;
-  #[test]
-  fn ${functionName}() {
-  ${examples}
-      assert_eq!(Solution::${functionName}(), 1);
-  }
-  `
+
+#[test]
+fn ${functionName}() {
+${examples}
+    assert_eq!(Solution::${functionName}(), 1);
+}
+`
       writeFileSync(filePath, code, 'utf-8')
       writeFileSync(testFilePath, testCode, 'utf-8')
       const modPath = join(dirname(filePath), 'mod.rs')
@@ -551,8 +555,8 @@ ${examples}
         appendFileSync(testModPath, `pub mod ${fileName}_test;\n`, 'utf-8')
       }
 
-      const libPath = join(__dirname, '../src/lib.rs')
-      const testsPath = join(__dirname, '../tests/tests.rs')
+      const libPath = join(__dirname, './src/lib.rs')
+      const testsPath = join(__dirname, './tests/tests.rs')
       if (!readFileSync(libPath, 'utf-8')?.includes(`pub mod ${classificationStr};`)) {
         appendFileSync(libPath, `pub mod ${classificationStr};\n`, 'utf-8')
       }
