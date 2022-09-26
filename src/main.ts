@@ -321,7 +321,7 @@ const languageTestFileSuffixMap = new Map<string, string>([
 const classificationToReadmeTitleMap = new Map(Object.entries(classificationToReadmeTitle))
 const readmeTitle = classificationToReadmeTitleMap.get(classificationStr) || '其它'
 const reg = /[^/\\]+[/\\]*$/
-const fileName = reg.exec(url)?.shift()?.replace(/[\/$]+/g, '')
+const fileName = language === 'typescript' ? reg.exec(url)?.shift()?.replace(/[\/$]+/g, '') : reg.exec(url)?.shift()?.replace(/-/ig, '_')?.replace(/[\/$]+/g, '')
 const filePath = join(__dirname, `src/${classificationStr}`, fileName + languageSourceDocSuffixMap.get(language))
 const imageFilePath = join(__dirname, `images/${classificationStr}`, fileName + '.jpeg')
 const testFilePath = join(__dirname, (language === 'rust' ? 'tests' : 'test') + `/${classificationStr}`, fileName + languageTestFileSuffixMap.get(language))
@@ -341,7 +341,7 @@ if (readmeFileContent.includes(url)) {
   const index = readmeFileContent.indexOf('### ' + readmeTitle)
   // * 不要删除下面存在的空行
   const instructions = `
-- [${title}](src/${classificationStr}/${fileName + '.ts'})  [${tags.join(', ')}]
+- [${title}](src/${classificationStr}/${fileName + languageSourceDocSuffixMap.get(language)})  [${tags.join(', ')}]
 
   - LeetCode ${LeetCodeTitle} <${url}>`
   readmeFileContent = readmeFileContent.slice(0, index) + readmeFileContent.slice(index).replace(/\n/i, '\n' + instructions + '\n')
