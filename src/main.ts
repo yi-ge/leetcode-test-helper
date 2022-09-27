@@ -195,7 +195,7 @@ if (url === '' || url === '1') {
 }
 
 // 标题/名称处理
-await page.waitForTimeout(1000)
+await page.waitForTimeout(2000)
 let LeetCodeTitle = (await page.title())?.split('-')?.shift()?.trim()
 while (LeetCodeTitle.trim() === '') {
   await page.waitForTimeout(1000)
