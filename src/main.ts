@@ -107,6 +107,8 @@ const init = async () => {
 
 let { url, language } = await init()
 
+let executablePath = existsSync('/Applications/Google Chrome.app/Contents/MacOS/Google Chrome') ? '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome' : undefined
+
 const browser = await chromium.launchPersistentContext(userDataDir, {
   headless: false,
   ignoreDefaultArgs: [
@@ -134,7 +136,7 @@ const browser = await chromium.launchPersistentContext(userDataDir, {
   ],
   // defaultViewport: null,
   deviceScaleFactor: 2.5,
-  executablePath: '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+  executablePath,
   // args: ['--restore-last-session', '--start-maximized']
   args: ['--start-maximized', '--no-default-browser-check']
 })
