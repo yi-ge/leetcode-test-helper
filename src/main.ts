@@ -298,6 +298,17 @@ const classificationToReadmeTitle = {
 }
 let tagIndex = 0
 let classification = (tags.length > 0 ? tags[tagIndex] : '未知') as string
+if (tags.includes('排序')) {
+  classification = '排序'
+} else if (tags.includes('图')) {
+  classification = '图'
+} else if (tags.includes('栈')) {
+  classification = '栈'
+} else if (tags.includes('堆')) {
+  classification = '堆'
+} else if (tags.includes('链表')) {
+  classification = '链表'
+}
 
 const tagToClassificationMap = new Map(Object.entries(tagToClassification))
 let classificationStr = tagToClassificationMap.get(classification) || 'other'
