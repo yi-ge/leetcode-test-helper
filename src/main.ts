@@ -503,8 +503,8 @@ ${examples}
 
 TEST(${title}, ${functionName})
 {
-${examples}
   ${className} ${className?.toLocaleLowerCase()};
+${examples}
   EXPECT_EQ(${className?.toLocaleLowerCase()}.${declaration}, 1);
 }
 `
