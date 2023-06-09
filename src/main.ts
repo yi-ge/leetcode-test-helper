@@ -407,13 +407,14 @@ const getExamples = async (page: Page) => {
       // @ts-ignore
       let desNode = iterateNext?.parentNode?.nextSibling?.nextSibling
       // @ts-ignore
-      while (desNode?.tagName === 'IMG') {
+      while (desNode && desNode?.tagName !== 'PRE') {
         desNode = desNode?.nextSibling?.nextSibling
       }
       // @ts-ignore
       examples += desNode?.innerText
       iterateNext = headings.iterateNext()
     }
+
     return examples
   })
 }
@@ -479,6 +480,7 @@ ${examples}
     code = `// ${title}
 // ${url}
 // INLINE  ../../images/${classificationStr}/${fileName}.jpeg
+
 #include <headers.hpp>
 
 ` + code
@@ -498,6 +500,7 @@ ${examples}
     if (functionName) {
       // * 不要删除下面存在的空行
       const testCode = `#include <${classificationStr}/${fileName + '.cpp'}>
+
 TEST(${title}, ${functionName})
 {
 ${examples}
