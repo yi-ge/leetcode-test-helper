@@ -3,6 +3,7 @@
     "backgrounding",
     "breakpad",
     "DCMAKE",
+    "domcontentloaded",
     "gtest",
     "leetcode",
     "networkidle",

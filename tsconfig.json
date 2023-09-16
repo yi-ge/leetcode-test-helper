@@ -1,6 +1,6 @@
 {
   "compilerOptions": {
-    "module": "esnext",
+    "module": "NodeNext",
     "target": "esnext",
     "outDir": "bin",
     "lib": [
@@ -15,7 +15,7 @@
       "ES2021",
       "ESNext"
     ],
-    "moduleResolution": "nodenext",
+    "moduleResolution": "NodeNext",
     "experimentalDecorators": true,
     "resolveJsonModule": true,
     "esModuleInterop": true,
